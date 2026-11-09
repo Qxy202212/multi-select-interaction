@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多选题作答 · 勾选即保存</title>
+  <style>
+    :root {
+      --header: #2B7DE9;
+      --primary: #3F80F4;
+      --primary-soft: #EAF3FF;
+      --sheet: #F54A45;
+      --ok: #22A45A;
+      --bad: #E85D5D;
+      --time: #22A45A;
+      --page: #F2F2F2;
+      --line: #ECECEC;
+      --text: #333333;
+      --muted: #8A8A8A;
+      --done: #8EC4F5;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--page);
+      font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      font-size: 14px;
+    }
+    button, input { font-family: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+
+    .app { height: 100%; display: flex; flex-direction: column; min-width: 960px; }
+
+    .tip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 36px;
+      padding: 6px 16px;
+      background: #EAF3FF;
+      color: #1F4E93;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .tip b {
+      flex-shrink: 0;
+      padding: 0 6px;
+      border-radius: 2px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      line-height: 20px;
+    }
+    .tip button {
+      margin-left: auto;
+      border: 0;
+      background: transparent;
+      color: #1F4E93;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .tip button:hover { text-decoration: underline; }
+
+    header.top {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 12px;
+      background: var(--header);
+      color: #fff;
+      user-select: none;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .brand-name { font-size: 15px; font-weight: 600; letter-spacing: .04em; line-height: 1.2; }
+    .brand-sub { font-size: 11px; color: rgba(255,255,255,.85); line-height: 1.2; }
+    .vdiv { width: 1px; height: 32px; background: rgba(255,255,255,.4); }
+    .paper-name { font-size: 16px; font-weight: 500; white-space: nowrap; }
+    .top-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .teacher { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: grid; place-items: center;
+      background: #D9A6E8; color: #fff; font-size: 11px;
+    }
+    .timebox {
+      width: 148px; height: 56px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #fff; color: var(--time);
+    }
+    .timebox small { font-size: 11px; line-height: 1; }
+    .timebox strong { margin-top: 4px; font-size: 16px; line-height: 1; font-weight: 600; }
+    .icon-btn {
+      width: 24px; height: 24px; padding: 0;
+      display: grid; place-items: center;
+      border: 0; border-radius: 4px; background: transparent; color: #fff;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,.15); }
+    .exit-btn {
+      height: 32px; padding: 0 14px;
+      display: inline-flex; align-items: center; gap: 4px;
+      border: 0; border-radius: 16px;
+      background: #fff; color: var(--bad); font-size: 13px;
+    }
+    .exit-btn:hover { background: #FFF5F5; }
+
+    main.stage {
+      flex: 1; min-height: 0;
+      display: flex; gap: 12px;
+      padding: 12px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 2px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .paper {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column;
+    }
+    .paper-head, .sheet-head { user-select: none; }
+    .paper-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px 0;
+    }
+    .qtype { margin: 0; color: var(--primary); font-size: 18px; font-weight: 600; }
+    .tools { display: flex; gap: 20px; }
+    .tool {
+      display: inline-flex; align-items: center; gap: 4px;
+      border: 0; background: transparent; color: var(--primary); font-size: 13px; padding: 0;
+    }
+    .tool.is-on svg { fill: currentColor; }
+    .tool:hover { opacity: .8; }
+
+    .paper-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 28px 8px; }
+    .stem { margin: 0 0 18px; font-size: 15px; line-height: 26px; }
+    .stem .no { font-weight: 600; }
+
+    .opt {
+      width: 100%;
+      display: flex; align-items: flex-start; gap: 10px;
+      margin: 0 0 6px; padding: 9px 12px;
+      border: 0; border-radius: 6px;
+      background: transparent; color: var(--text);
+      text-align: left; font-size: 15px; line-height: 22px;
+    }
+    .opt:hover { background: #F7F8FA; }
+    .opt.is-on { background: var(--primary-soft); }
+    .opt.is-on:hover { background: #E1EDFC; }
+    .opt.is-right { background: #F2FBF5; color: #148746; }
+    .opt.is-wrong { background: #FFF5F5; color: var(--bad); }
+    .opt.is-miss { background: #F7FBF8; color: #148746; }
+    .opt:disabled { cursor: default; }
+    .opt:disabled:hover { background: transparent; }
+    .opt.is-on:disabled:hover { background: var(--primary-soft); }
+    .opt.is-right:disabled:hover { background: #F2FBF5; }
+    .opt.is-wrong:disabled:hover { background: #FFF5F5; }
+    .opt.is-miss:disabled:hover { background: #F7FBF8; }
+
+    .box {
+      width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0;
+      display: grid; place-items: center;
+      border: 1.5px solid #C8C8C8; border-radius: 4px; background: #fff; color: #fff;
+    }
+    .opt.is-on .box { border-color: var(--primary); background: var(--primary); }
+    .opt.is-right .box { border-color: var(--ok); background: var(--ok); }
+    .opt.is-wrong .box { border-color: var(--bad); background: var(--bad); }
+    .opt.is-miss .box { border-color: var(--ok); background: #fff; color: var(--ok); }
+    .letter { flex-shrink: 0; min-width: 1.6em; font-weight: 600; }
+
+    .save {
+      margin: 12px 0 4px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #F7F9FC;
+    }
+    .save-line { display: flex; align-items: center; gap: 8px; min-height: 22px; font-size: 13px; }
+    .save-ico {
+      width: 16px; height: 16px; flex-shrink: 0;
+      display: grid; place-items: center;
+      border-radius: 50%; background: var(--ok); color: #fff;
+    }
+    .save.is-fresh .save-ico { animation: pop .35s ease; }
+    .save strong { font-weight: 600; }
+    .save .quiet { color: var(--muted); }
+    .linkish {
+      margin-left: auto;
+      border: 0; background: transparent; padding: 0;
+      color: var(--primary); font-size: 13px;
+    }
+    .linkish:hover { text-decoration: underline; }
+    @media (prefers-reduced-motion: reduce) {
+      .save.is-fresh .save-ico { animation: none; }
+    }
+
+    .result { margin-top: 14px; font-size: 14px; line-height: 24px; }
+    .result-line { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+    .dotok { color: var(--ok); }
+    .dotbad { color: var(--bad); }
+    .explain { margin: 6px 0 0; color: #555; }
+    .judge { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+
+    .nav {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 12px 20px 16px;
+      user-select: none;
+    }
+    .nav-left { display: flex; gap: 8px; }
+    .nav-right { justify-self: end; }
+    .step {
+      height: 32px; padding: 0 16px;
+      border: 0; border-radius: 3px;
+      background: var(--primary); color: #fff; font-size: 13px;
+    }
+    .step:hover { background: #3576E6; }
+    .step:disabled { background: #C5D8F2; cursor: default; }
+    .ghost {
+      height: 32px; padding: 0 14px;
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid #9EC4F8; border-radius: 3px;
+      background: #fff; color: var(--primary); font-size: 13px;
+    }
+    .ghost:hover { background: #F5F9FF; }
+    .auto {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: #666; font-size: 13px; cursor: pointer; user-select: none;
+    }
+    .auto input { width: 14px; height: 14px; accent-color: var(--primary); }
+
+    .sheet {
+      width: 280px; flex-shrink: 0;
+      display: flex; flex-direction: column;
+    }
+    .sheet-head { padding: 20px 16px 0; text-align: center; }
+    .sheet-head h2 { margin: 0; font-size: 17px; }
+    .legend {
+      margin-top: 12px;
+      display: flex; justify-content: center; gap: 16px;
+      color: #999; font-size: 12px;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 4px; }
+    .sw { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+    .sw-done { background: var(--done); }
+    .sw-todo { background: #fff; border: 1px solid #D0D0D0; }
+    .sw-mark { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
+    .groups { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 8px; }
+    .sec { margin-bottom: 14px; }
+    .sec-name {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 8px; color: #666; font-size: 13px;
+    }
+    .sec-name i { width: 3px; height: 14px; border-radius: 1px; background: var(--primary); }
+    .grid { display: grid; grid-template-columns: repeat(6, 32px); gap: 8px; }
+    .num {
+      position: relative;
+      width: 32px; height: 32px; padding: 0;
+      display: grid; place-items: center;
+      border: 1px solid #D8D8D8; border-radius: 4px;
+      background: #fff; color: #555; font-size: 13px;
+    }
+    .num.is-done { background: var(--done); border-color: var(--done); color: #fff; }
+    .num.is-cur { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+    .num.is-fresh { animation: savedPulse .6s ease-out; }
+    .num .mark {
+      position: absolute; top: -3px; right: -3px;
+      width: 8px; height: 8px; border-radius: 50%; background: var(--bad);
+    }
+    .submit-wrap { padding: 12px 24px 20px; }
+    .submit {
+      width: 100%; height: 40px;
+      border: 0; border-radius: 20px;
+      background: var(--sheet); color: #fff; font-size: 15px;
+    }
+    .submit:hover { background: #E0433F; }
+    .submit:disabled { background: #F0B4B2; cursor: default; }
+
+    .mask {
+      position: fixed; inset: 0; z-index: 40;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,.35);
+    }
+    .dialog {
+      width: 420px; max-width: calc(100vw - 32px);
+      padding: 22px 22px 16px;
+      border-radius: 4px; background: #fff;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18);
+    }
+    .dialog h3 { margin: 0 0 10px; font-size: 16px; }
+    .dialog p { margin: 0; color: #555; font-size: 14px; line-height: 22px; white-space: pre-line; }
+    .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .dlg-actions .step { min-width: 72px; }
+    .btn-plain {
+      height: 32px; padding: 0 16px;
+      border: 1px solid #D8D8D8; border-radius: 3px;
+      background: #fff; color: #555; font-size: 13px;
+    }
+    .btn-plain:hover { background: #FAFAFA; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 28px; z-index: 50;
+      transform: translateX(-50%);
+      padding: 8px 14px; border-radius: 4px;
+      background: rgba(0,0,0,.78); color: #fff; font-size: 13px;
+      pointer-events: none;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(.6); }
+      60% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    @keyframes savedPulse {
+      0% { box-shadow: 0 0 0 0 rgba(63,128,244,.45); }
+      100% { box-shadow: 0 0 0 8px rgba(63,128,244,0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="tip" id="tip">
+      <b>优化</b>
+      <span>多选题取消「确认」。勾选后立刻写入答题卡，切到其他题也不会丢。开了自动解析时，离开本题再回来才显示解析，人还停在这题上可以继续改。</span>
+      <button type="button" id="tipClose">知道了</button>
+    </div>
+
+    <header class="top">
+      <div class="brand">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M4 7.2h7.1l4.9 17.6H9.2L4 7.2z" fill="#fff" opacity=".95"/>
+          <path d="M12.2 7.2h7.4L24.8 24.8h-7.1L12.2 7.2z" fill="#fff" opacity=".75"/>
+          <path d="M20.6 7.2H28L23.2 24.8h-7.2L20.6 7.2z" fill="#fff"/>
+        </svg>
+        <div>
+          <div class="brand-name">WPS 教学平台</div>
+          <div class="brand-sub">一站式数字化办公人才培养平台（模考试宝典）</div>
+        </div>
+        <div class="vdiv"></div>
+        <div class="paper-name">全题型试卷满分120</div>
+      </div>
+      <div class="top-right">
+        <div class="teacher">
+          <div class="avatar">老师</div>
+          <span>邱老师</span>
+        </div>
+        <div class="timebox">
+          <small>考生剩余时间</small>
+          <strong id="timer">479分58秒</strong>
+        </div>
+        <button type="button" class="icon-btn" title="收藏考场" aria-label="收藏考场">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.6 9.7l5.8-.8L12 3.6z"/></svg>
+        </button>
+        <button type="button" class="icon-btn" title="最小化" aria-label="最小化">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+        </button>
+        <button type="button" class="icon-btn" title="最大化" aria-label="最大化">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14"/></svg>
+        </button>
+        <button type="button" class="exit-btn" id="exitBtn">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2"/><path d="M4 12h12M13 8l4 4-4 4"/></svg>
+          退出考场
+        </button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <section class="card paper" aria-label="题目">
+        <div class="paper-head">
+          <h1 class="qtype">多选题</h1>
+          <div class="tools">
+            <button type="button" class="tool" id="markBtn">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M4 20l4.5-1.2L19 8.3a2 2 0 0 0 0-2.8L18.5 5a2 2 0 0 0-2.8 0L4.8 15.9 4 20z"/></svg>
+              标记
+            </button>
+            <button type="button" class="tool" id="favBtn">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.6 9.7l5.8-.8L12 3.6z"/></svg>
+              收藏
+            </button>
+            <button type="button" class="tool" id="feedbackBtn">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M5 6h14v9H8l-3 3V6z"/></svg>
+              反馈
+            </button>
+          </div>
+        </div>
+        <div class="paper-body" id="paperBody"></div>
+        <div class="nav">
+          <div class="nav-left">
+            <button type="button" class="step" id="prevBtn">‹ 上一题</button>
+            <button type="button" class="step" id="nextBtn">下一题 ›</button>
+          </div>
+          <button type="button" class="ghost" id="analysisBtn">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span id="analysisBtnText">显示解析</span>
+          </button>
+          <label class="nav-right auto">
+            <input type="checkbox" id="autoChk" checked />
+            答题完自动显示解析
+          </label>
+        </div>
+      </section>
+
+      <aside class="card sheet" aria-label="答题卡">
+        <div class="sheet-head">
+          <h2>答题卡</h2>
+          <div class="legend">
+            <span><i class="sw sw-done"></i>已做 <b id="doneCount">0</b></span>
+            <span><i class="sw sw-todo"></i>未做 <b id="todoCount">12</b></span>
+            <span><i class="sw sw-mark"></i>标记 <b id="markCount">0</b></span>
+          </div>
+        </div>
+        <div class="groups" id="groups"></div>
+        <div class="submit-wrap">
+          <button type="button" class="submit" id="submitBtn">提交考卷</button>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div class="mask" id="mask" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+      <h3 id="dlgTitle"></h3>
+      <p id="dlgText"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn-plain" id="dlgCancel">取消</button>
+        <button type="button" class="step" id="dlgOk">确定</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast" hidden></div>
+
+  <script>
+    var QUESTIONS = [
+      {
+        id: 5,
+        score: 2,
+        stem: "大数据指的是所涉及的信息量规模巨大到无法通过传统软件工具，在合理的时间内达到摄取、管理和处理的数据集。其特征包括（）。",
+        options: [
+          ["A", "数据体量巨大"],
+          ["B", "数据类型繁多"],
+          ["C", "价值密度低"],
+          ["D", "处理速度快"]
+        ],
+        answer: ["A", "B", "C", "D"],
+        analysis: "大数据的基本特征可以用4个V（Volume、Variety、Value和Velocity），即数据体量巨大、数据类型繁多、价值密度低和处理速度快，所以选ABCD。"
+      },
+      {
+        id: 6,
+        score: 2,
+        stem: "计算机内部采用二进制的原因在于（）。",
+        options: [
+          ["A", "易于物理实现"],
+          ["B", "工作可靠性高"],
+          ["C", "运算规则简单"],
+          ["D", "适合逻辑运算"]
+        ],
+        answer: ["A", "B", "C", "D"],
+        analysis: "二进制只有 0 和 1 两种状态，易于用电平物理实现，工作可靠性高，运算规则简单，也适合逻辑运算，所以选ABCD。"
+      },
+      {
+        id: 7,
+        score: 2,
+        stem: "下列关于计算机病毒的叙述，正确的是（）。",
+        options: [
+          ["A", "计算机病毒是人为编制的一段程序"],
+          ["B", "计算机病毒能够自我复制"],
+          ["C", "计算机病毒一定会造成硬件损坏"],
+          ["D", "计算机病毒可以通过网络传播"]
+        ],
+        answer: ["A", "B", "D"],
+        analysis: "计算机病毒是人为编制的程序，能自我复制，并通过存储介质或网络传播。它主要破坏软件和数据，并不一定损坏硬件，所以不选C。"
+      }
+    ];
+    var SECTIONS = [
+      { name: "AI实训题", total: 1, items: [1] },
+      { name: "单选题", total: 3, items: [2, 3, 4] },
+      { name: "多选题", total: 3, items: [5, 6, 7] },
+      { name: "判断题", total: 3, items: [8, 9, 10] },
+      { name: "操作小题", total: 2, items: [11, 12] }
+    ];
+    var LIVE_IDS = { 5: true, 6: true, 7: true };
+
+    var state = {
+      index: 0,
+      saved: {},
+      revealed: {},
+      analysisOpen: {},
+      marked: {},
+      faved: {},
+      auto: true,
+      submitted: false,
+      taught: false,
+      freshId: 0
+    };
+    var toastTimer = null;
+    var dialogOk = null;
+
+    function current() { return QUESTIONS[state.index]; }
+    function picked(id) { return state.saved[id] ? state.saved[id].slice() : []; }
+    function sameSet(a, b) {
+      if (a.length !== b.length) return false;
+      var sa = a.slice().sort().join("");
+      var sb = b.slice().sort().join("");
+      return sa === sb;
+    }
+
+    function toast(text) {
+      var el = document.getElementById("toast");
+      el.textContent = text;
+      el.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { el.hidden = true; }, 2200);
+    }
+
+    function openDialog(title, text, onOk) {
+      document.getElementById("dlgTitle").textContent = title;
+      document.getElementById("dlgText").textContent = text;
+      document.getElementById("mask").hidden = false;
+      dialogOk = onOk;
+      document.getElementById("dlgOk").focus();
+    }
+    function closeDialog() {
+      document.getElementById("mask").hidden = true;
+      dialogOk = null;
+    }
+
+    function finishOnLeave() {
+      var q = current();
+      if (!state.auto || state.submitted || state.revealed[q.id]) return;
+      if (!picked(q.id).length) return;
+      state.revealed[q.id] = true;
+      state.analysisOpen[q.id] = true;
+    }
+
+    function checkIcon(kind) {
+      if (kind === "miss") {
+        return '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 6h7"/></svg>';
+      }
+      if (kind === "wrong") {
+        return '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="1.7"><path d="M3 3l6 6M9 3L3 9"/></svg>';
+      }
+      if (kind === "on" || kind === "right") {
+        return '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="1.8"><path d="M2.2 6.2L4.8 8.7 9.8 3.4"/></svg>';
+      }
+      return "";
+    }
+
+    function optionClass(key, q) {
+      var on = picked(q.id).indexOf(key) >= 0;
+      var right = q.answer.indexOf(key) >= 0;
+      if (!state.revealed[q.id]) return on ? "is-on" : "";
+      if (on && right) return "is-right";
+      if (on && !right) return "is-wrong";
+      if (!on && right) return "is-miss";
+      return "";
+    }
+    function optionKind(key, q) {
+      var on = picked(q.id).indexOf(key) >= 0;
+      var right = q.answer.indexOf(key) >= 0;
+      if (!state.revealed[q.id]) return on ? "on" : "";
+      if (on && right) return "right";
+      if (on && !right) return "wrong";
+      if (!on && right) return "miss";
+      return "";
+    }
+
+    function saveBlock(q) {
+      var list = picked(q.id);
+      if (!list.length) return "";
+      var revealed = !!state.revealed[q.id];
+      var html = '<div class="save' + (state.freshId === q.id ? " is-fresh" : "") + '">';
+      html += '<div class="save-line"><span class="save-ico" aria-hidden="true">';
+      html += '<svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="1.8"><path d="M2.2 6.2L4.8 8.7 9.8 3.4"/></svg>';
+      html += '</span>';
+      html += "<strong>已保存 " + list.join("、") + "</strong>";
+      if (revealed) {
+        html += '<span class="quiet">答案已锁定</span>';
+        if (!state.submitted) html += '<button type="button" class="linkish" data-act="revise">修改答案</button>';
+      }
+      html += "</div></div>";
+      return html;
+    }
+
+    function resultBlock(q) {
+      if (!state.revealed[q.id] || state.analysisOpen[q.id] === false) return "";
+      var list = picked(q.id);
+      var exact = sameSet(list, q.answer);
+      var missing = q.answer.filter(function (k) { return list.indexOf(k) < 0; });
+      var extra = list.filter(function (k) { return q.answer.indexOf(k) < 0; });
+      var note = exact ? "全部选对" : "";
+      if (!exact) {
+        var bits = [];
+        if (missing.length) bits.push("少选 " + missing.join("、"));
+        if (extra.length) bits.push("多选 " + extra.join("、"));
+        note = bits.join("，");
+      }
+      return ''
+        + '<div class="result">'
+        + '<div class="result-line">'
+        + '<span class="dotok">● 正确答案：' + q.answer.join("、") + "</span>"
+        + '<span class="' + (exact ? "dotok" : "dotbad") + '">● 我的答案：' + (list.join("、") || "未作答") + "</span>"
+        + "</div>"
+        + '<p class="judge">' + note + "</p>"
+        + '<p class="explain">解析：' + q.analysis + "</p>"
+        + "</div>";
+    }
+
+    function renderQuestion() {
+      var q = current();
+      var locked = !!state.revealed[q.id] || state.submitted;
+      var html = '<p class="stem"><span class="no">' + q.id + ".</span> 【多选题 " + q.score + "分】" + q.stem + "</p>";
+      q.options.forEach(function (opt) {
+        var key = opt[0];
+        var kind = optionKind(key, q);
+        html += '<button type="button" class="opt ' + optionClass(key, q) + '" data-act="opt" data-key="' + key + '"'
+          + (locked ? " disabled" : "")
+          + ' aria-pressed="' + (picked(q.id).indexOf(key) >= 0 ? "true" : "false") + '">'
+          + '<span class="box">' + checkIcon(kind) + "</span>"
+          + '<span class="letter">' + key + ".</span>"
+          + "<span>" + opt[1] + "</span></button>";
+      });
+      html += saveBlock(q);
+      html += resultBlock(q);
+      document.getElementById("paperBody").innerHTML = html;
+
+      var open = !!state.revealed[q.id] && state.analysisOpen[q.id] !== false;
+      document.getElementById("analysisBtnText").textContent = open ? "隐藏解析" : "显示解析";
+      document.getElementById("prevBtn").disabled = state.index === 0;
+      document.getElementById("nextBtn").disabled = state.index === QUESTIONS.length - 1;
+
+      var markBtn = document.getElementById("markBtn");
+      var favBtn = document.getElementById("favBtn");
+      markBtn.classList.toggle("is-on", !!state.marked[q.id]);
+      favBtn.classList.toggle("is-on", !!state.faved[q.id]);
+      markBtn.querySelector("svg").setAttribute("fill", state.marked[q.id] ? "currentColor" : "none");
+      favBtn.querySelector("svg").setAttribute("fill", state.faved[q.id] ? "currentColor" : "none");
+    }
+
+    function renderSheet() {
+      var done = 0;
+      QUESTIONS.forEach(function (q) { if (picked(q.id).length) done += 1; });
+      var marks = 0;
+      Object.keys(state.marked).forEach(function (k) { if (state.marked[k]) marks += 1; });
+      document.getElementById("doneCount").textContent = String(done);
+      document.getElementById("todoCount").textContent = String(12 - done);
+      document.getElementById("markCount").textContent = String(marks);
+
+      var cur = current().id;
+      var html = "";
+      SECTIONS.forEach(function (sec) {
+        html += '<div class="sec"><div class="sec-name"><i></i>' + sec.name + "（共" + sec.total + "题）</div><div class=\"grid\">";
+        sec.items.forEach(function (n) {
+          var live = !!LIVE_IDS[n];
+          var isDone = live && picked(n).length > 0;
+          var isCur = n === cur;
+          var cls = "num" + (isCur ? " is-cur" : isDone ? " is-done" : "") + (state.freshId === n ? " is-fresh" : "");
+          var title = live
+            ? (isDone ? "第" + n + "题 已保存 " + picked(n).join("、") : "第" + n + "题 未作答")
+            : "本题不在这次多选题演示里";
+          html += '<button type="button" class="' + cls + '" data-act="jump" data-n="' + n + '" title="' + title + '">'
+            + n
+            + (state.marked[n] ? '<i class="mark"></i>' : "")
+            + "</button>";
+        });
+        html += "</div></div>";
+      });
+      document.getElementById("groups").innerHTML = html;
+      document.getElementById("submitBtn").disabled = state.submitted;
+      document.getElementById("submitBtn").textContent = state.submitted ? "已提交" : "提交考卷";
+    }
+
+    function render() {
+      renderQuestion();
+      renderSheet();
+    }
+
+    function toggle(key) {
+      if (state.submitted) { toast("考卷已提交，不能再改答案"); return; }
+      var q = current();
+      if (state.revealed[q.id]) {
+        toast("解析已显示。要改选项，先点「修改答案」");
+        return;
+      }
+      var list = picked(q.id);
+      var at = list.indexOf(key);
+      if (at >= 0) list.splice(at, 1);
+      else list.push(key);
+      if (list.length) state.saved[q.id] = list;
+      else delete state.saved[q.id];
+      state.freshId = q.id;
+      if (list.length && !state.taught) {
+        state.taught = true;
+        toast("已保存");
+      }
+      render();
+    }
+
+    function showOrHideAnalysis() {
+      var q = current();
+      if (state.revealed[q.id] && state.analysisOpen[q.id] !== false) {
+        state.analysisOpen[q.id] = false;
+        render();
+        return;
+      }
+      if (!picked(q.id).length) {
+        toast("请先勾选选项，勾上就会保存");
+        return;
+      }
+      state.revealed[q.id] = true;
+      state.analysisOpen[q.id] = true;
+      render();
+    }
+
+    function go(step) {
+      var next = state.index + step;
+      if (next < 0 || next >= QUESTIONS.length) {
+        toast(step < 0 ? "已经是第一道多选题" : "已经是最后一道多选题");
+        return;
+      }
+      finishOnLeave();
+      state.freshId = 0;
+      state.index = next;
+      render();
+      document.getElementById("paperBody").scrollTop = 0;
+    }
+
+    function jump(n) {
+      if (!LIVE_IDS[n]) {
+        toast("这页只演示多选题，第 " + n + " 题不能作答");
+        return;
+      }
+      var idx = -1;
+      QUESTIONS.forEach(function (q, i) { if (q.id === n) idx = i; });
+      if (idx < 0 || idx === state.index) return;
+      finishOnLeave();
+      state.freshId = 0;
+      state.index = idx;
+      render();
+      document.getElementById("paperBody").scrollTop = 0;
+    }
+
+    function savedSummary() {
+      return QUESTIONS.map(function (q) {
+        var list = picked(q.id);
+        return "第" + q.id + "题 " + (list.length ? list.join("、") : "未作答");
+      }).join("\n");
+    }
+
+    document.getElementById("paperBody").addEventListener("click", function (e) {
+      var opt = e.target.closest("[data-act='opt']");
+      if (opt) { toggle(opt.getAttribute("data-key")); return; }
+      if (e.target.closest("[data-act='revise']")) {
+        var q = current();
+        state.revealed[q.id] = false;
+        state.analysisOpen[q.id] = false;
+        render();
+      }
+    });
+
+    document.getElementById("groups").addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-act='jump']");
+      if (!btn) return;
+      jump(Number(btn.getAttribute("data-n")));
+    });
+
+    document.getElementById("prevBtn").onclick = function () { go(-1); };
+    document.getElementById("nextBtn").onclick = function () { go(1); };
+    document.getElementById("analysisBtn").onclick = showOrHideAnalysis;
+    document.getElementById("autoChk").onchange = function () {
+      state.auto = this.checked;
+      render();
+    };
+    document.getElementById("markBtn").onclick = function () {
+      var id = current().id;
+      state.marked[id] = !state.marked[id];
+      render();
+      toast(state.marked[id] ? "已标记本题" : "已取消标记");
+    };
+    document.getElementById("favBtn").onclick = function () {
+      var id = current().id;
+      state.faved[id] = !state.faved[id];
+      render();
+      toast(state.faved[id] ? "已收藏本题" : "已取消收藏");
+    };
+    document.getElementById("feedbackBtn").onclick = function () { toast("已收到反馈"); };
+
+    document.getElementById("submitBtn").onclick = function () {
+      if (state.submitted) return;
+      var done = QUESTIONS.filter(function (q) { return picked(q.id).length; }).length;
+      openDialog(
+        "提交考卷",
+        "多选题已保存 " + done + "/3 题。提交后不能再改。\n" + savedSummary(),
+        function () {
+          state.submitted = true;
+          render();
+          toast("提交成功，多选题作答已保存");
+        }
+      );
+    };
+    document.getElementById("exitBtn").onclick = function () {
+      openDialog(
+        "退出考场",
+        "当前多选题勾选已写入答题卡。\n" + savedSummary() + "\n\n本页记录只留在这次打开里，刷新会清空。",
+        function () { toast("已退出。答题卡里的多选题记录还在"); }
+      );
+    };
+    document.getElementById("dlgCancel").onclick = closeDialog;
+    document.getElementById("dlgOk").onclick = function () {
+      var fn = dialogOk;
+      closeDialog();
+      if (fn) fn();
+    };
+    document.getElementById("mask").addEventListener("click", function (e) {
+      if (e.target.id === "mask") closeDialog();
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (!document.getElementById("mask").hidden && e.key === "Escape") { closeDialog(); return; }
+      if (!document.getElementById("mask").hidden) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      var tag = e.target && e.target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      var k = e.key.toUpperCase();
+      if (k.length === 1 && "ABCD".indexOf(k) >= 0) {
+        e.preventDefault();
+        toggle(k);
+      }
+    });
+
+    document.getElementById("tipClose").onclick = function () {
+      document.getElementById("tip").hidden = true;
+      try { sessionStorage.setItem("multi-select-tip-off", "1"); } catch (err) {}
+    };
+    try {
+      if (sessionStorage.getItem("multi-select-tip-off") === "1") document.getElementById("tip").hidden = true;
+    } catch (err) {}
+
+    var remain = 479 * 60 + 58;
+    setInterval(function () {
+      remain = Math.max(0, remain - 1);
+      var m = Math.floor(remain / 60);
+      var s = remain % 60;
+      document.getElementById("timer").textContent = m + "分" + (s < 10 ? "0" : "") + s + "秒";
+    }, 1000);
+
+    render();
+  </script>
+</body>
+</html>
